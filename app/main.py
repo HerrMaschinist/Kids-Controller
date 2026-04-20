@@ -10,6 +10,8 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
+from app.admin_routes import api_router as admin_api_router
+from app.admin_routes import router as admin_router
 from app.api_routes import router
 from config.logging import configure_logging
 from config.settings import get_settings
@@ -33,6 +35,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(router)
+    app.include_router(admin_router)
+    app.include_router(admin_api_router)
     return app
 
 

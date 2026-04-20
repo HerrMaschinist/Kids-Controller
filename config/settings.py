@@ -4,6 +4,7 @@ Anwendungskonfiguration via Pydantic-Settings (Umgebungsvariablen oder .env).
 """
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import field_validator
@@ -44,6 +45,12 @@ class Settings(BaseSettings):
     router_timeout_seconds: float = 2.0
     router_observe_path: str = "/route"
 
+    # Admin-Oberfläche
+    admin_enabled: bool = False
+    admin_username: str | None = None
+    admin_password: str | None = None
+    admin_backup_dir: str = "/home/alex/backups/kids_controller_manual"
+
     @field_validator("router_url")
     @classmethod
     def validate_router_url(cls, value: str | None) -> str | None:
@@ -73,6 +80,22 @@ class Settings(BaseSettings):
         if value <= 0 or value > 10:
             raise ValueError("router_timeout_seconds muss zwischen 0 und 10 Sekunden liegen")
         return value
+
+    @field_validator("admin_username", "admin_password")
+    @classmethod
+    def validate_admin_credentials(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @field_validator("admin_backup_dir")
+    @classmethod
+    def validate_admin_backup_dir(cls, value: str) -> str:
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            raise ValueError("admin_backup_dir muss ein absoluter Pfad sein")
+        return str(path)
 
     @property
     def db_conninfo(self) -> str:

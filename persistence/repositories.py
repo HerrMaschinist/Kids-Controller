@@ -99,6 +99,27 @@ class WindowRepository:
         finally:
             await conn.close()
 
+    async def list_recent(self, limit: int = 20) -> list[FairnessWindow]:
+        conn = await psycopg.AsyncConnection.connect(
+            self._conninfo,
+            row_factory=dict_row,
+        )
+        try:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT *
+                    FROM fairness_windows
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = await cur.fetchall()
+            return [record_to_fairness_window(row) for row in rows]
+        finally:
+            await conn.close()
+
     async def insert(
         self, window: FairnessWindow, conn: psycopg.AsyncConnection
     ) -> FairnessWindow:
@@ -197,6 +218,27 @@ class DrawRepository:
                 )
                 row = await cur.fetchone()
             return record_to_draw(row) if row else None
+        finally:
+            await conn.close()
+
+    async def list_recent(self, limit: int = 20) -> list[Draw]:
+        conn = await psycopg.AsyncConnection.connect(
+            self._conninfo,
+            row_factory=dict_row,
+        )
+        try:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT *
+                    FROM draws
+                    ORDER BY draw_ts DESC, id DESC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = await cur.fetchall()
+            return [record_to_draw(row) for row in rows]
         finally:
             await conn.close()
 

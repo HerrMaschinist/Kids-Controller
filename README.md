@@ -146,6 +146,36 @@ Zusätzlich gibt es einen lesenden Status-Endpunkt:
 GET /api/v1/status
 ```
 
+## Admin-Oberflaeche
+
+Es gibt eine kleine Admin-Oberflaeche fuer Betrieb und manuelle Aktionen:
+
+- UI: `GET /admin`
+- JSON-Admin-API: `GET /admin/api/v1/overview`
+
+Die Admin-Oberflaeche ist bewusst vom Fachpfad getrennt:
+
+- `/api/v1/...` fuer Home Assistant und fachliche Requests
+- `/admin/...` fuer Menschen, Betrieb und manuelle Steuerung
+
+Fuer die Aktivierung werden folgende Umgebungsvariablen benoetigt:
+
+```env
+ADMIN_ENABLED=true
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<strong-password>
+ADMIN_BACKUP_DIR=/home/alex/backups/kids_controller_manual
+```
+
+Aktuell unterstuetzt Phase 1:
+
+- Dashboard mit Betriebsstatus
+- Draw- und Fensteruebersicht
+- sichtbare Konfiguration
+- manueller Draw
+- Router-Probe
+- App-Backup nach `/opt/kids_controller`
+
 ---
 
 ## Wichtige Hinweise

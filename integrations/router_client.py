@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
+from urllib.parse import urljoin
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -48,6 +49,19 @@ class RouterClient:
     @property
     def enabled(self) -> bool:
         return self._enabled
+
+    async def probe_health(self) -> RouterProbeResult:
+        if not self._enabled or not self._base_url:
+            return RouterProbeResult(
+                enabled=False,
+                available=None,
+                status="disabled",
+                message="Router ist deaktiviert oder nicht konfiguriert",
+                error=None,
+                status_code=None,
+                assessment=None,
+            )
+        return self._get_health()
 
     async def observe_draw(
         self,
@@ -193,6 +207,77 @@ class RouterClient:
                 status="degraded",
                 message="Router nicht erreichbar",
                 error=reason.__class__.__name__ if reason is not None else "unreachable",
+                status_code=None,
+                assessment=None,
+            )
+
+    def _get_health(self) -> RouterProbeResult:
+        assert self._base_url is not None
+        url = urljoin(f"{self._base_url}/", "health")
+        headers = {}
+        if self._api_key:
+            headers["X-API-Key"] = self._api_key
+        request = Request(
+            url,
+            headers=headers,
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=self._timeout_seconds) as response:
+                body = response.read().decode("utf-8").strip()
+                payload = json.loads(body) if body else {}
+                status = payload.get("status", "ok") if isinstance(payload, dict) else "ok"
+                service = payload.get("service") if isinstance(payload, dict) else None
+                return RouterProbeResult(
+                    enabled=True,
+                    available=True,
+                    status=str(status),
+                    message=(
+                        f"Router-Health erfolgreich ({service})"
+                        if service else "Router-Health erfolgreich"
+                    ),
+                    error=None,
+                    status_code=getattr(response, "status", None),
+                    assessment=None,
+                )
+        except HTTPError as exc:
+            return RouterProbeResult(
+                enabled=True,
+                available=False,
+                status="degraded",
+                message="Router-Health meldete einen HTTP-Fehler",
+                error=f"HTTP {getattr(exc, 'code', 'unknown')}",
+                status_code=getattr(exc, "code", None),
+                assessment=None,
+            )
+        except TimeoutError:
+            return RouterProbeResult(
+                enabled=True,
+                available=False,
+                status="degraded",
+                message="Router-Health timeout",
+                error="timeout",
+                status_code=None,
+                assessment=None,
+            )
+        except URLError as exc:
+            reason = getattr(exc, "reason", None)
+            return RouterProbeResult(
+                enabled=True,
+                available=False,
+                status="degraded",
+                message="Router-Health nicht erreichbar",
+                error=reason.__class__.__name__ if reason is not None else "unreachable",
+                status_code=None,
+                assessment=None,
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            return RouterProbeResult(
+                enabled=True,
+                available=False,
+                status="degraded",
+                message="Router-Health lieferte ungültige Antwort",
+                error=exc.__class__.__name__,
                 status_code=None,
                 assessment=None,
             )
