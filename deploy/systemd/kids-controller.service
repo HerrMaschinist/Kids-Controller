@@ -1,0 +1,19 @@
+[Unit]
+Description=Kids Controller FastAPI Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alex
+Group=alex
+WorkingDirectory=/opt/kids_controller
+EnvironmentFile=/etc/kids_controller/.env
+ExecStart=/opt/kids_controller/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
