@@ -71,6 +71,8 @@ des Draws zeigen kann.
 
 Die gesamte Fachlogik: Domänenobjekte (`models.py`), Algorithmus (`algorithm.py`),
 Transaktionsorchestrierung (`draw_service.py`) und Validierung (`validation.py`).
+`derive_draw_mode_from_presence(...)` ist die zentrale, pure Ableitungsfunktion
+für den Modus. `DrawRequest.determine_mode()` delegiert nur noch dorthin.
 `DrawContext.from_request(...)` ist der standardisierte Einstieg in den
 Berechnungskern und erzeugt den normalisierten Kontext für Replay und Audit.
 Keine Datenbankabhängigkeiten. Kein Import aus `app/` oder `integrations/`.
@@ -138,6 +140,9 @@ erzeugt, damit ein Fensterzustand später reproduzierbar bleibt.
 Die neue Statusschicht liest den aktuellen Fensterzustand und den letzten
 effektiven Draw aus der DB und ergänzt ihn um den in-memory Supervisor-Status.
 Der Statuspfad ist lesend und schreibt keine fachlichen Daten.
+Die Admin-UI im Frontend führt keine eigene Modus-Wahrheit. Sie zeigt nur die
+aus Anwesenheit abgeleitete Vorschau `deriveModeFromPresence(...)` an; der
+finale Modus kommt weiterhin aus dem Backend-Draw.
 `active_window_present=false` ist in der aktuellen Version ein zulässiger
 Zwischenzustand, solange keine aktive Triplet-Phase läuft.
 

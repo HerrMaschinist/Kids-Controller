@@ -59,6 +59,7 @@ class TestEmmiFieldNaming:
         assert "leon_present" in fields
         assert "emmi_present" in fields
         assert "elsa_present" in fields
+        assert "mode" not in fields
 
     def test_domain_request_has_emmi_present(self):
         """DrawRequest hat das korrekt geschriebene Anwesenheitsfeld."""
@@ -186,6 +187,12 @@ class TestHaAdapter:
         serialized = resp.model_dump(by_alias=True)
         assert "date" in serialized
         assert serialized["date"] == date(2025, 3, 1)
+
+    def test_request_has_no_mode_field(self):
+        ha_req = self._make_ha_request()
+        domain_req = ha_request_to_domain(ha_req)
+        assert domain_req.determine_mode() == DrawMode.TRIPLET
+        assert not hasattr(ha_req, "mode")
 
     def test_ha_response_has_required_fields(self):
         """

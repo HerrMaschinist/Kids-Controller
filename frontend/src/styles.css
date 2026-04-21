@@ -336,6 +336,34 @@ button:disabled {
   font-weight: 700;
 }
 
+.preview-box {
+  padding: 0.9rem 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(21, 94, 82, 0.16);
+  background: rgba(21, 94, 82, 0.06);
+}
+
+.preview-box p {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.preview-box strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.preview-box span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .table-wrap {
   overflow-x: auto;
   border-radius: 1rem;

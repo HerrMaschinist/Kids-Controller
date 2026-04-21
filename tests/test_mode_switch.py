@@ -18,6 +18,7 @@ from core.models import (
     DrawMode,
     DrawRequest,
     FairnessWindow,
+    derive_draw_mode_from_presence,
     PermCode,
     WindowStatus,
 )
@@ -82,6 +83,32 @@ class TestModeDetection:
     def test_skip_none_present(self):
         req = _make_request(False, False, False)
         assert req.determine_mode() == DrawMode.SKIP
+
+    def test_central_derive_function_matches_matrix(self):
+        assert derive_draw_mode_from_presence(True, True, True) == DrawMode.TRIPLET
+        assert derive_draw_mode_from_presence(True, True, False) == DrawMode.PAIR
+        assert derive_draw_mode_from_presence(True, False, False) == DrawMode.SINGLE
+        assert derive_draw_mode_from_presence(False, False, False) == DrawMode.SKIP
+
+    def test_central_derive_function_handles_unexpected_values_gracefully(self):
+        assert derive_draw_mode_from_presence(None, -1, "yes") == DrawMode.SKIP
+        assert derive_draw_mode_from_presence(True, object(), False) == DrawMode.SINGLE
+
+    def test_mode_does_not_stick_across_changes(self):
+        req = _make_request(True, True, True)
+        assert req.determine_mode() == DrawMode.TRIPLET
+
+        req = _make_request(True, True, False)
+        assert req.determine_mode() == DrawMode.PAIR
+
+        req = _make_request(True, False, False)
+        assert req.determine_mode() == DrawMode.SINGLE
+
+        req = _make_request(False, False, False)
+        assert req.determine_mode() == DrawMode.SKIP
+
+        req = _make_request(False, True, False)
+        assert req.determine_mode() == DrawMode.SINGLE
 
 
 # ---------------------------------------------------------------------------

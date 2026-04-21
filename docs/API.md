@@ -215,6 +215,10 @@ Die SPA spricht dieselbe Admin-JSON-API an:
 - `POST /admin/api/v1/actions/router-probe`
 - `POST /admin/api/v1/actions/backup`
 
+Die Admin-UI sendet bei Draw-Aktionen nur Anwesenheit plus `request_id`.
+Ein separater Modus wird nicht im Request übertragen. Der finale Modus wird
+immer serverseitig aus der Anwesenheit abgeleitet und im Response zurückgegeben.
+
 ---
 
 ## Modus-Logik (Übersicht)

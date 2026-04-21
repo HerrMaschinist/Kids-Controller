@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { deriveModeFromPresence } from './mode.js'
 
 const tabs = [
   { key: 'dashboard', label: 'Dashboard', path: '/admin' },
@@ -26,6 +27,7 @@ const status = computed(() => overview.value?.status ?? null)
 const recentDraws = computed(() => overview.value?.recent_draws ?? [])
 const recentWindows = computed(() => overview.value?.recent_windows ?? [])
 const configEntries = computed(() => overview.value?.config ?? [])
+const modePreview = computed(() => deriveModeFromPresence(presence))
 
 const metrics = computed(() => {
   const current = status.value
@@ -310,17 +312,22 @@ onMounted(() => {
           </div>
 
           <div class="action-stack">
-            <div class="action-box">
-              <h4>Draw ausloesen</h4>
-              <div class="presence-grid">
-                <label><input v-model="presence.leon" type="checkbox" /> Leon</label>
-                <label><input v-model="presence.emmi" type="checkbox" /> Emmi</label>
-                <label><input v-model="presence.elsa" type="checkbox" /> Elsa</label>
-              </div>
-              <button class="primary-button" type="button" :disabled="busyAction" @click="submitDraw()">
-                {{ busyAction === '/admin/api/v1/actions/draw' ? 'Draw laeuft ...' : 'Draw starten' }}
-              </button>
+          <div class="action-box">
+            <h4>Draw ausloesen</h4>
+            <div class="presence-grid">
+              <label><input v-model="presence.leon" type="checkbox" /> Leon</label>
+              <label><input v-model="presence.emmi" type="checkbox" /> Emmi</label>
+              <label><input v-model="presence.elsa" type="checkbox" /> Elsa</label>
             </div>
+            <div class="preview-box">
+              <p>Abgeleiteter Modus</p>
+              <strong>{{ modePreview }}</strong>
+              <span>Nur Vorschau. Das Backend bestimmt den finalen Modus.</span>
+            </div>
+            <button class="primary-button" type="button" :disabled="busyAction" @click="submitDraw()">
+              {{ busyAction === '/admin/api/v1/actions/draw' ? 'Draw laeuft ...' : 'Draw starten' }}
+            </button>
+          </div>
 
             <div class="action-box">
               <h4>Router pruefen</h4>

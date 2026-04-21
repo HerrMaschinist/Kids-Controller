@@ -49,6 +49,30 @@ class DrawMode(str, enum.Enum):
     SKIP    = "SKIP"
 
 
+def derive_draw_mode_from_presence(
+    leon_present: object,
+    emmi_present: object,
+    elsa_present: object,
+) -> DrawMode:
+    """
+    Leitet den fachlichen Modus ausschließlich aus Anwesenheit ab.
+
+    Nur der boolesche Wert ``True`` zählt als anwesend. Alle anderen Werte
+    werden als abwesend behandelt, damit die Ableitung bei unerwarteten
+    Eingaben nicht kippt.
+    """
+    present_count = sum(
+        value is True for value in (leon_present, emmi_present, elsa_present)
+    )
+    if present_count == 3:
+        return DrawMode.TRIPLET
+    if present_count == 2:
+        return DrawMode.PAIR
+    if present_count == 1:
+        return DrawMode.SINGLE
+    return DrawMode.SKIP
+
+
 class PermCode(str, enum.Enum):
     P123 = "123"
     P132 = "132"
@@ -150,14 +174,11 @@ class DrawRequest:
         return bin(self.present_mask).count("1")
 
     def determine_mode(self) -> DrawMode:
-        count = self.present_count
-        if count == 3:
-            return DrawMode.TRIPLET
-        if count == 2:
-            return DrawMode.PAIR
-        if count == 1:
-            return DrawMode.SINGLE
-        return DrawMode.SKIP
+        return derive_draw_mode_from_presence(
+            self.leon_present,
+            self.emmi_present,
+            self.elsa_present,
+        )
 
     def present_ids(self) -> list[int]:
         result = []
