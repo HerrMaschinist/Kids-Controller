@@ -8,3 +8,5 @@ __pycache__/
 kids_controller.egg-info/
 deploy_state.json
 runtime_checks.json
+frontend/node_modules/
+frontend/dist/

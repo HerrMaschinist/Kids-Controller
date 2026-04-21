@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     api_port: int = 8001
     api_prefix: str = "/api/v1"
     debug: bool = False
+    controller_timezone: str = "Europe/Berlin"
 
     # Optionaler Supervisor-/Router-Pfad
     router_enabled: bool = False
@@ -79,6 +81,15 @@ class Settings(BaseSettings):
     def validate_router_timeout(cls, value: float) -> float:
         if value <= 0 or value > 10:
             raise ValueError("router_timeout_seconds muss zwischen 0 und 10 Sekunden liegen")
+        return value
+
+    @field_validator("controller_timezone")
+    @classmethod
+    def validate_controller_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Unbekannte Zeitzone: {value}") from exc
         return value
 
     @field_validator("admin_username", "admin_password")

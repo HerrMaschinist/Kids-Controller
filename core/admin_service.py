@@ -13,6 +13,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from config.settings import Settings
+from config.time import today_in_timezone
 from core.draw_service import DrawService
 from core.models import Draw, DrawRequest, FairnessWindow
 from core.supervisor_service import SupervisorService
@@ -97,6 +98,7 @@ class AdminService:
                 emmi_present=emmi_present,
                 elsa_present=elsa_present,
                 request_id=uuid4(),
+                draw_date=today_in_timezone(self._settings.controller_timezone),
             )
         )
         return (

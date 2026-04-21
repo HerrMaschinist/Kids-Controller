@@ -23,7 +23,8 @@ SQL_DRAWS_COLUMNS = {
     "present_mask", "window_index", "active_window_index_snapshot", "perm_code",
     "derived_from_last_full_order", "is_effective", "superseded_by_draw_id",
     "pair_key", "pair_cycle_index", "pos1", "pos2", "pos3",
-    "stop_morning", "stop_midday", "algorithm_version", "seed_material_hash", "note",
+    "stop_morning", "stop_midday", "algorithm_version", "seed_material_hash",
+    "replay_context_hash", "note",
 }
 
 SQL_FAIRNESS_WINDOWS_COLUMNS = {

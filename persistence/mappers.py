@@ -82,6 +82,7 @@ def record_to_draw(row: dict) -> Draw:
         stop_midday=row["stop_midday"],
         algorithm_version=row["algorithm_version"],
         seed_material_hash=row["seed_material_hash"],
+        replay_context_hash=row.get("replay_context_hash") or row["seed_material_hash"],
         note=row["note"],
     )
 
@@ -119,6 +120,7 @@ def draw_to_insert_params(draw: Draw) -> dict[str, Any]:
         "algorithm_version":            draw.algorithm_version,
         "seed_material_hash":           draw.seed_material_hash,
         "note":                         draw.note,
+        "replay_context_hash":          draw.replay_context_hash,
     }
 
 

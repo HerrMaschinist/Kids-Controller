@@ -11,6 +11,7 @@ revisionssicher in PostgreSQL und stellt einen FastAPI-Endpunkt für Home Assist
 ## Voraussetzungen
 
 - Python 3.11+
+- Node.js 20+ fuer den Vue-3-Admin-Client
 - PostgreSQL 14+ unter `192.168.50.10:5432`
 - Datenbank `kids_controller` und Rolle `kids_controller_admin` (via SQL-Skripte anlegen)
 
@@ -52,7 +53,7 @@ DB_USER=kids_controller_admin
 DB_PASSWORD=kc_secure_pw_change_me
 API_PORT=8001
 ROUTER_ENABLED=false
-ROUTER_URL=http://127.0.0.1:8071
+ROUTER_URL=http://192.168.50.10:8071
 ROUTER_API_KEY=<<from secure env only>>
 ROUTER_TIMEOUT_SECONDS=2.0
 ROUTER_OBSERVE_PATH=/route
@@ -113,7 +114,7 @@ python -m pytest tests/ -v
 ## API-Endpunkt
 
 ```
-POST http://localhost:8001/api/v1/draw
+POST http://192.168.50.10:8001/api/v1/draw
 Content-Type: application/json
 
 {
@@ -148,10 +149,12 @@ GET /api/v1/status
 
 ## Admin-Oberflaeche
 
-Es gibt eine kleine Admin-Oberflaeche fuer Betrieb und manuelle Aktionen:
+Es gibt eine Vue-3-Admin-Oberflaeche fuer Betrieb und manuelle Aktionen:
 
 - UI: `GET /admin`
+- Deep Links: `GET /admin/draws`, `GET /admin/windows`, `GET /admin/config`
 - JSON-Admin-API: `GET /admin/api/v1/overview`
+- JSON-Aktionen: `POST /admin/api/v1/actions/draw`, `POST /admin/api/v1/actions/router-probe`, `POST /admin/api/v1/actions/backup`
 
 Die Admin-Oberflaeche ist bewusst vom Fachpfad getrennt:
 
@@ -175,6 +178,8 @@ Aktuell unterstuetzt Phase 1:
 - manueller Draw
 - Router-Probe
 - App-Backup nach `/opt/kids_controller`
+
+Der Vue-Client liegt in `frontend/` und wird beim Deploy automatisch mit `npm install`/`npm run build` kompiliert.
 
 ---
 

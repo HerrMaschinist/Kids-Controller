@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from config.settings import get_settings
+from config.time import today_in_timezone
 from core.models import Draw, DrawRequest
 from integrations.homeassistant_models import HaDrawRequest, HaDrawResponse
 
@@ -29,7 +31,7 @@ def ha_request_to_domain(ha_req: HaDrawRequest, draw_date: date | None = None) -
         leon_present=ha_req.leon_present,
         emmi_present=ha_req.emmi_present,
         elsa_present=ha_req.elsa_present,
-        draw_date=draw_date or date.today(),
+        draw_date=draw_date or today_in_timezone(get_settings().controller_timezone),
     )
 
 

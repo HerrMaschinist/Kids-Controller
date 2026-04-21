@@ -199,6 +199,22 @@ nicht gesetzt ist oder `router_url` fehlt, läuft der Kernpfad ohne Router weite
 Die Router-Antwort darf nur eine supervisorische Bewertung liefern, keine
 neue Reihenfolge oder DB-Anweisung.
 
+## Admin-Oberflaeche
+
+Die Betriebsoberflaeche laeuft als Vue-3-SPA unter:
+
+- `GET /admin`
+- `GET /admin/draws`
+- `GET /admin/windows`
+- `GET /admin/config`
+
+Die SPA spricht dieselbe Admin-JSON-API an:
+
+- `GET /admin/api/v1/overview`
+- `POST /admin/api/v1/actions/draw`
+- `POST /admin/api/v1/actions/router-probe`
+- `POST /admin/api/v1/actions/backup`
+
 ---
 
 ## Modus-Logik (Übersicht)

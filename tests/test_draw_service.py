@@ -91,6 +91,12 @@ class FakeDrawRepo:
                 return draw
         return None
 
+    async def find_latest_effective_draw(self):
+        for draw in reversed(self.draws):
+            if draw.is_effective:
+                return draw
+        return None
+
     async def find_effective_by_date(self, draw_date):
         for draw in reversed(self.draws):
             if draw.draw_date == draw_date and draw.is_effective:
@@ -179,6 +185,47 @@ def test_pair_sequence_rotates_and_uses_last_full_order():
     assert window_repo.active_window.last_mode == DrawMode.TRIPLET
 
 
+def test_pair_sequence_falls_back_to_latest_triplet_when_window_is_completed():
+    window_repo = FakeWindowRepo(None)
+    draw_repo = FakeDrawRepo()
+    latest_triplet = Draw(
+        id=77,
+        draw_ts=datetime.now(tz=timezone.utc),
+        draw_date=date(2025, 1, 14),
+        request_id=uuid4(),
+        window_id="WXYZ5678",
+        mode=DrawMode.TRIPLET,
+        present_mask=7,
+        window_index=5,
+        active_window_index_snapshot=5,
+        perm_code=PermCode.P231,
+        derived_from_last_full_order=False,
+        is_effective=True,
+        superseded_by_draw_id=None,
+        pair_key=None,
+        pair_cycle_index=None,
+        pos1=2,
+        pos2=3,
+        pos3=1,
+        stop_morning=2,
+        stop_midday=3,
+        algorithm_version="1.0.0",
+        seed_material_hash="d" * 64,
+        replay_context_hash="e" * 64,
+        note=None,
+    )
+    draw_repo.draws.append(latest_triplet)
+    service = DrawService(window_repo, draw_repo)
+
+    draw = _run(service.execute(_make_request(True, True, False)))
+
+    assert draw.mode == DrawMode.PAIR
+    assert draw.derived_from_last_full_order is True
+    assert (draw.pos1, draw.pos2) == (2, 1)
+    assert draw.window_id == latest_triplet.window_id
+    assert draw.active_window_index_snapshot == latest_triplet.window_index
+
+
 def test_single_and_skip_outputs():
     window_repo = FakeWindowRepo(None)
     draw_repo = FakeDrawRepo()
@@ -239,6 +286,7 @@ def test_duplicate_request_id_returns_existing_draw_without_persisting():
         stop_midday=None,
         algorithm_version="1.0.0",
         seed_material_hash="b" * 64,
+        replay_context_hash="f" * 64,
         note=None,
     )
     window_repo = FakeWindowRepo(None)
@@ -299,6 +347,7 @@ def test_uq_effective_draw_per_date_returns_existing_draw(monkeypatch):
         stop_midday=2,
         algorithm_version="1.0.0",
         seed_material_hash="c" * 64,
+        replay_context_hash="g" * 64,
         note=None,
     )
     window_repo = FakeWindowRepo(None)

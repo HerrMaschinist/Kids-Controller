@@ -7,11 +7,12 @@ Endpunkt: POST /api/v1/draw
 from __future__ import annotations
 
 import logging
-from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dependencies import get_draw_service, get_supervisor_service
+from config.settings import get_settings
+from config.time import today_in_timezone
 from core.draw_service import DrawService
 from core.validation import ValidationError
 from integrations.homeassistant_adapter import (
@@ -42,7 +43,11 @@ async def post_draw(
     ha_request:   HaDrawRequest = ...,
     draw_service: DrawService   = Depends(get_draw_service),
 ) -> HaDrawResponse:
-    domain_request = ha_request_to_domain(ha_request, draw_date=date.today())
+    settings = get_settings()
+    domain_request = ha_request_to_domain(
+        ha_request,
+        draw_date=today_in_timezone(settings.controller_timezone),
+    )
 
     try:
         draw = await draw_service.execute(domain_request)

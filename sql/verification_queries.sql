@@ -58,12 +58,19 @@ WHERE    table_schema = 'public'
   AND    table_name   = 'system_config'
 ORDER BY ordinal_position;
 
--- 6. Prüfe system_config-Inhalt
+-- 6. Prüfe replay_context_hash in draws
+SELECT   column_name, data_type, udt_name, is_nullable, column_default
+FROM     information_schema.columns
+WHERE    table_schema = 'public'
+  AND    table_name   = 'draws'
+  AND    column_name  = 'replay_context_hash';
+
+-- 7. Prüfe system_config-Inhalt
 SELECT key_name, value, updated_at
 FROM   system_config
 ORDER BY key_name;
 
--- 7. Prüfe window_status_enum enthält kein ABORTED
+-- 8. Prüfe window_status_enum enthält kein ABORTED
 SELECT enumlabel
 FROM   pg_enum e
 JOIN   pg_type t ON e.enumtypid = t.oid

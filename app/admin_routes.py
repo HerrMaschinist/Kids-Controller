@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.dependencies import get_admin_service
+from app.admin_ui import render_admin_index
 from config.settings import get_settings
 from core.admin_service import AdminActionResult, AdminService
 from core.models import Draw, FairnessWindow
@@ -52,15 +53,7 @@ async def admin_dashboard(
     _: str = Depends(require_admin_auth),
     admin_service: AdminService = Depends(get_admin_service),
 ) -> HTMLResponse:
-    overview = await admin_service.overview()
-    message = request.query_params.get("message")
-    message_kind = request.query_params.get("kind", "info")
-    return HTMLResponse(
-        _render_page(
-            title="Dashboard",
-            content=_render_dashboard(overview, message, message_kind),
-        )
-    )
+    return HTMLResponse(render_admin_index())
 
 
 @router.get("/draws", response_class=HTMLResponse)
@@ -68,13 +61,7 @@ async def admin_draws(
     _: str = Depends(require_admin_auth),
     admin_service: AdminService = Depends(get_admin_service),
 ) -> HTMLResponse:
-    draws = await admin_service.recent_draws(limit=50)
-    return HTMLResponse(
-        _render_page(
-            title="Draws",
-            content=_render_draws(draws),
-        )
-    )
+    return HTMLResponse(render_admin_index())
 
 
 @router.get("/windows", response_class=HTMLResponse)
@@ -82,13 +69,7 @@ async def admin_windows(
     _: str = Depends(require_admin_auth),
     admin_service: AdminService = Depends(get_admin_service),
 ) -> HTMLResponse:
-    windows = await admin_service.recent_windows(limit=50)
-    return HTMLResponse(
-        _render_page(
-            title="Fenster",
-            content=_render_windows(windows),
-        )
-    )
+    return HTMLResponse(render_admin_index())
 
 
 @router.get("/config", response_class=HTMLResponse)
@@ -96,13 +77,7 @@ async def admin_config(
     _: str = Depends(require_admin_auth),
     admin_service: AdminService = Depends(get_admin_service),
 ) -> HTMLResponse:
-    config = admin_service.config_snapshot()
-    return HTMLResponse(
-        _render_page(
-            title="Konfiguration",
-            content=_render_config(config),
-        )
-    )
+    return HTMLResponse(render_admin_index())
 
 
 @router.post("/actions/draw")
@@ -154,6 +129,39 @@ async def admin_api_overview(
         "config": overview["config"],
     }
     return JSONResponse(payload)
+
+
+@api_router.post("/actions/draw")
+async def admin_api_action_draw(
+    request: Request,
+    _: str = Depends(require_admin_auth),
+    admin_service: AdminService = Depends(get_admin_service),
+) -> JSONResponse:
+    body = await request.json()
+    result, draw = await admin_service.trigger_draw(
+        leon_present=bool(body.get("leon_present")),
+        emmi_present=bool(body.get("emmi_present")),
+        elsa_present=bool(body.get("elsa_present")),
+    )
+    return JSONResponse({"result": result.__dict__, "draw": _draw_payload(draw)})
+
+
+@api_router.post("/actions/router-probe")
+async def admin_api_action_router_probe(
+    _: str = Depends(require_admin_auth),
+    admin_service: AdminService = Depends(get_admin_service),
+) -> JSONResponse:
+    result, probe = await admin_service.probe_router()
+    return JSONResponse({"result": result.__dict__, "probe": probe.model_dump(mode="json")})
+
+
+@api_router.post("/actions/backup")
+async def admin_api_action_backup(
+    _: str = Depends(require_admin_auth),
+    admin_service: AdminService = Depends(get_admin_service),
+) -> JSONResponse:
+    result = await admin_service.create_backup()
+    return JSONResponse({"result": result.__dict__})
 
 
 @api_router.get("/draws")

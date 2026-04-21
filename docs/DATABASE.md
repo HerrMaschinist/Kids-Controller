@@ -91,6 +91,7 @@ Jeder einzelne Auslosungs-Vorgang, unveränderlich gespeichert.
 | `stop_midday` | `SMALLINT` | NULL | Kind-ID Haltestelle mittags |
 | `algorithm_version` | `VARCHAR(32)` | NOT NULL | z.B. `1.0.0` |
 | `seed_material_hash` | `CHAR(64)` | NOT NULL | SHA-256 des Request-Seed-Materials |
+| `replay_context_hash` | `CHAR(64)` | NOT NULL | SHA-256 des normalisierten Replay-Kontexts |
 | `note` | `VARCHAR(255)` | NULL | Optionale Notiz |
 
 ### `system_config`
@@ -131,11 +132,19 @@ Verboten sind `config_key`, `config_value` und JSONB als Value-Typ.
 `window_index` läuft 0–11 (ACTIVE), danach 12 (COMPLETED). Rückkehrregel: bestehendes
 Fenster wird fortgesetzt, wenn wieder alle drei anwesend sind. `last_mode` ist dabei
 nur der letzte Fenster-/TRIPLET-Zustand.
+Die Fensterfolge ist reproduzierbar, weil die Shuffle-Sequenz aus dem gespeicherten
+Fenster-Seed abgeleitet wird.
+Der Draw speichert zusätzlich `replay_context_hash`, also den SHA-256-Fingerprint
+des normalisierten Eingabe- und Referenzkontexts für Audit und Replay.
 
 **PAIR:** Das Dreierfenster wird nicht verbraucht. AB/BA-Rotation per `pair_cycle_index`.
 Erster PAIR-Tag einer zusammenhängenden Phase kann aus `last_full_order` abgeleitet werden.
-`window_index` ist NULL. `perm_code` ist NULL. `pos3` ist NULL. Die Runtime-Wahrheit
-liegt in `core/draw_service.py::_handle_pair()`.
+Wenn kein aktives Fenster mehr vorhanden ist, wird der letzte effektive TRIPLET-Draw
+als fachliche Referenz herangezogen. `window_index` ist NULL. `perm_code` ist NULL.
+`pos3` ist NULL. Die Runtime-Wahrheit liegt in `core/draw_service.py::_handle_pair()`,
+aber die eigentliche Draw-Erzeugung läuft zentral über `core/algorithm.py`.
+`DrawContext.from_request(...)` ist der bevorzugte Einstieg für alle Aufrufe,
+weil damit der normalisierte Kontext für Audit und Replay einheitlich erzeugt wird.
 
 Die Live-DB enthält zusätzlich `uq_effective_draw_per_date`: pro Tag ist genau ein
 effektiver Draw erlaubt (`is_effective = TRUE`).
@@ -143,6 +152,14 @@ effektiver Draw erlaubt (`is_effective = TRUE`).
 **SINGLE:** `pos1` = anwesendes Kind. `pos2` = NULL. `pos3` = NULL.
 
 **SKIP:** Alle Positionsfelder NULL. Kein Fensterverbrauch.
+
+**Zeitzone:** Der fachliche Tagesbezug verwendet die konfigurierte Controller-Zeitzone
+(`controller_timezone`), nicht die Server-Standardzeit.
+
+**Aktive Fenster:** Ein leerer Active-State ist fachlich zulässig. Wenn `active_window_present = false`
+und `exactly_one_active_window = false`, bedeutet das in der aktuellen Architektur
+nicht automatisch einen Fehler. Das nächste `TRIPLET`-Fenster wird beim ersten
+passenden Draw automatisch erzeugt.
 
 ---
 
@@ -152,5 +169,23 @@ effektiver Draw erlaubt (`is_effective = TRUE`).
 00_reset_and_create_database.sql   – als postgres
 01_schema_types_and_tables.sql     – als kids_controller_admin, DB kids_controller
 02_seed_system_config.sql          – als kids_controller_admin, DB kids_controller
+03_add_replay_context_hash.sql     – Migration für bestehende Instanzen
 verification_queries.sql           – optional, zur Prüfung
 ```
+
+`03_add_replay_context_hash.sql` backfilled historische `draws`-Zeilen mit dem
+bereits vorhandenen `seed_material_hash`, damit ältere Datenbestände auf das
+neue Pflichtfeld umgestellt werden können, ohne sofort neu erzeugt werden zu müssen.
+
+### Live-Migrationspfad
+
+1. `03_add_replay_context_hash.sql` auf der Live-DB ausführen.
+2. Anwendung neu deployen, damit der Code `replay_context_hash` schreibt.
+3. `verification_queries.sql` ausführen und prüfen, dass die neue Spalte vorhanden ist.
+4. Optional einen `TRIPLET`-Draw auslösen, wenn du direkt wieder ein aktives
+   Fenster anlegen willst.
+
+Wenn du einen harten Betriebszustand "genau ein aktives Fenster zu jedem Zeitpunkt"
+erzwingen willst, braucht das einen zusätzlichen Bootstrap-Job oder eine
+Bootstrapping-Regel beim Start. Die aktuelle Version ist bewusst toleranter und
+kommt mit `0` aktiven Fenstern zurecht.

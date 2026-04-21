@@ -14,15 +14,13 @@ from __future__ import annotations
 import logging
 
 from core.algorithm import (
-    build_draw,
-    _pair_positions_for_state,
+    build_draw_from_context,
     next_pair_cycle_index,
     _pair_key_for_mask,
-    _compute_seed_hash,
-    ALGORITHM_VERSION,
 )
 from core.models import (
     Draw,
+    DrawContext,
     DrawMode,
     DrawRequest,
     FairnessWindow,
@@ -78,7 +76,9 @@ class DrawService:
                             request, active_window, conn
                         )
                     else:
-                        draw, updated_window = build_draw(request, active_window)
+                        draw, updated_window = build_draw_from_context(
+                            DrawContext.from_request(request, active_window)
+                        )
 
                     # Schritt 3: Fenster aktualisieren oder neu anlegen
                     if updated_window is not None:
@@ -192,68 +192,48 @@ class DrawService:
         PAIR-Logik mit AB/BA-Rotation.
         Liest den letzten PAIR-Draw für diesen pair_key, um cycle_index zu bestimmen.
         """
-        from datetime import datetime, timezone
-
-        pair_key  = _pair_key_for_mask(request.present_mask)
-        now       = datetime.now(tz=timezone.utc)
-        seed_hash = _compute_seed_hash(
-            request.request_id, request.draw_date, DrawMode.PAIR
-        )
-
         # Letzten PAIR-Draw für diesen pair_key lesen
         last_pair_draw = await self._draw_repo.find_last_pair_for_key(
-            pair_key, conn
+            _pair_key_for_mask(request.present_mask), conn
         )
 
-        derived = False
-        pos1: int
-        pos2: int
+        pair_cycle_index = None
+        pair_last_full_order = None
+        latest_effective_draw = None
+        source_window_id = active_window.window_id if active_window else None
+        source_window_index = active_window.window_index if active_window else None
 
         if last_pair_draw is None:
-            last_full_order = (
+            pair_last_full_order = (
                 active_window.last_full_order
                 if active_window is not None and active_window.last_full_order is not None
                 else None
             )
-            pos1, pos2, derived, cycle_index = _pair_positions_for_state(
-                pair_key,
-                last_full_order=last_full_order,
-            )
+            if pair_last_full_order is None:
+                latest_effective_draw = await self._draw_repo.find_latest_effective_draw()
+                if (
+                    latest_effective_draw is not None
+                    and latest_effective_draw.mode == DrawMode.TRIPLET
+                    and latest_effective_draw.perm_code is not None
+                ):
+                    pair_last_full_order = latest_effective_draw.perm_code
+                    source_window_id = latest_effective_draw.window_id
+                    source_window_index = latest_effective_draw.window_index
         else:
             last_cycle  = last_pair_draw.pair_cycle_index
-            new_cycle   = next_pair_cycle_index(last_cycle)
-            pos1, pos2, derived, cycle_index = _pair_positions_for_state(
-                pair_key,
-                pair_cycle_index=new_cycle,
-            )
+            pair_cycle_index = next_pair_cycle_index(last_cycle)
 
-        draw = Draw(
-            id=0,
-            draw_ts=now,
-            draw_date=request.draw_date,
-            request_id=request.request_id,
-            window_id=active_window.window_id if active_window else None,
-            mode=DrawMode.PAIR,
-            present_mask=request.present_mask,
-            window_index=None,
-            active_window_index_snapshot=(
-                active_window.window_index if active_window else None
-            ),
-            perm_code=None,
-            derived_from_last_full_order=derived,
-            is_effective=True,
-            superseded_by_draw_id=None,
-            pair_key=pair_key,
-            pair_cycle_index=cycle_index,
-            pos1=pos1,
-            pos2=pos2,
-            pos3=None,
-            stop_morning=pos1,
-            stop_midday=pos2,
-            algorithm_version=ALGORITHM_VERSION,
-            seed_material_hash=seed_hash,
-            note=None,
+        context = DrawContext.from_request(
+            request,
+            active_window,
+            latest_effective_draw=latest_effective_draw,
+            last_pair_draw=last_pair_draw,
+            pair_cycle_index=pair_cycle_index,
+            pair_last_full_order=pair_last_full_order,
+            pair_window_id=source_window_id,
+            pair_window_index=source_window_index,
         )
+        draw, _ = build_draw_from_context(context)
         return draw, None
 
 

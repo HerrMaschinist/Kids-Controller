@@ -49,6 +49,7 @@ def _make_draw(mode: DrawMode = DrawMode.TRIPLET) -> Draw:
         stop_midday=2,
         algorithm_version="1.0.0",
         seed_material_hash="a" * 64,
+        replay_context_hash="r" * 64,
         note=None,
     )
 
@@ -115,10 +116,17 @@ class TestDrawToInsertParams:
             "perm_code", "derived_from_last_full_order", "is_effective",
             "superseded_by_draw_id", "pair_key", "pair_cycle_index",
             "pos1", "pos2", "pos3", "stop_morning", "stop_midday",
-            "algorithm_version", "seed_material_hash", "note",
+            "algorithm_version", "seed_material_hash", "replay_context_hash",
+            "note",
         }
         params = draw_to_insert_params(_make_draw())
         assert required.issubset(params.keys())
+
+    def test_replay_context_hash_is_string(self):
+        draw = _make_draw()
+        params = draw_to_insert_params(draw)
+        assert isinstance(params["replay_context_hash"], str)
+        assert len(params["replay_context_hash"]) == 64
 
 
 class TestWindowMappers:

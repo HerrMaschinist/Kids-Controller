@@ -170,6 +170,7 @@ class TestHaAdapter:
             stop_midday=1,
             algorithm_version="1.0.0",
             seed_material_hash="c" * 64,
+            replay_context_hash="d" * 64,
             note=None,
         )
         resp = domain_draw_to_ha_response(draw)

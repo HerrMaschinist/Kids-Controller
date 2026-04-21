@@ -22,8 +22,21 @@ rsync -a --delete \
   --exclude "__pycache__/" \
   --exclude "*.pyc" \
   --exclude "kids_controller.egg-info/" \
+  --exclude "frontend/node_modules/" \
   --exclude ".env" \
   "$SOURCE_DIR/" "$TARGET_DIR/"
+
+if [[ -f "$TARGET_DIR/frontend/package.json" ]]; then
+  echo "installing frontend dependencies..."
+  if [[ -f "$TARGET_DIR/frontend/package-lock.json" ]]; then
+    npm ci --prefix "$TARGET_DIR/frontend"
+  else
+    npm install --prefix "$TARGET_DIR/frontend"
+  fi
+
+  echo "building frontend..."
+  npm run build --prefix "$TARGET_DIR/frontend"
+fi
 
 if [[ ! -x "$VENV_DIR/bin/python" ]]; then
   echo "creating virtualenv in $VENV_DIR ..."

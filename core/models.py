@@ -121,6 +121,7 @@ class Draw:
     stop_midday:                  Optional[int]
     algorithm_version:            str
     seed_material_hash:           str
+    replay_context_hash:          str
     note:                         Optional[str]
 
 
@@ -167,6 +168,104 @@ class DrawRequest:
         if self.elsa_present:
             result.append(ELSA_ID)
         return result
+
+
+@dataclass
+class DrawContext:
+    """
+    Expliziter fachlicher Kontext für die Berechnung eines Draws.
+
+    Der Kontext bündelt die Eingabe und die aus der Persistenz abgeleiteten
+    Referenzwerte, damit der Algorithmus nicht mehr aus verstreuten Feldern
+    zusammengesetzt werden muss.
+    """
+    request: DrawRequest
+    active_window: Optional[FairnessWindow]
+    latest_effective_draw: Optional[Draw] = None
+    last_pair_draw: Optional[Draw] = None
+    pair_cycle_index: Optional[int] = None
+    pair_last_full_order: Optional[PermCode] = None
+    pair_window_id: Optional[str] = None
+    pair_window_index: Optional[int] = None
+
+    @classmethod
+    def from_request(
+        cls,
+        request: DrawRequest,
+        active_window: Optional[FairnessWindow] = None,
+        *,
+        latest_effective_draw: Optional[Draw] = None,
+        last_pair_draw: Optional[Draw] = None,
+        pair_cycle_index: Optional[int] = None,
+        pair_last_full_order: Optional[PermCode] = None,
+        pair_window_id: Optional[str] = None,
+        pair_window_index: Optional[int] = None,
+    ) -> "DrawContext":
+        return cls(
+            request=request,
+            active_window=active_window,
+            latest_effective_draw=latest_effective_draw,
+            last_pair_draw=last_pair_draw,
+            pair_cycle_index=pair_cycle_index,
+            pair_last_full_order=pair_last_full_order,
+            pair_window_id=pair_window_id,
+            pair_window_index=pair_window_index,
+        )
+
+    def replay_material(self, seed_hash: str) -> str:
+        """Kanonische Replay-Beschreibung für Audit und Reproduzierbarkeit."""
+
+        def _ref_draw(draw: Optional[Draw]) -> str:
+            if draw is None:
+                return "none"
+            return "|".join(
+                [
+                    f"id={draw.id}",
+                    f"mode={draw.mode.value}",
+                    f"date={draw.draw_date.isoformat()}",
+                    f"window_id={draw.window_id or ''}",
+                    f"window_index={'' if draw.window_index is None else draw.window_index}",
+                    f"perm_code={draw.perm_code.value if draw.perm_code else ''}",
+                    f"pair_key={draw.pair_key.value if draw.pair_key else ''}",
+                    f"pair_cycle_index={'' if draw.pair_cycle_index is None else draw.pair_cycle_index}",
+                    f"derived={int(draw.derived_from_last_full_order)}",
+                    f"effective={int(draw.is_effective)}",
+                    f"superseded_by_draw_id={'' if draw.superseded_by_draw_id is None else draw.superseded_by_draw_id}",
+                ]
+            )
+
+        def _ref_window(window: Optional[FairnessWindow]) -> str:
+            if window is None:
+                return "none"
+            return "|".join(
+                [
+                    f"id={window.id}",
+                    f"window_id={window.window_id}",
+                    f"status={window.window_status.value}",
+                    f"window_index={window.window_index}",
+                    f"last_full_order={window.last_full_order.value if window.last_full_order else ''}",
+                    f"last_full_draw_date={'' if window.last_full_draw_date is None else window.last_full_draw_date.isoformat()}",
+                    f"last_mode={window.last_mode.value if window.last_mode else ''}",
+                    f"seed_material_hash={window.seed_material_hash}",
+                ]
+            )
+
+        request = self.request
+        parts = [
+            "v=1",
+            f"seed_hash={seed_hash}",
+            f"request_id={request.request_id}",
+            f"draw_date={request.draw_date.isoformat()}",
+            f"present_mask={request.present_mask}",
+            f"active_window={_ref_window(self.active_window)}",
+            f"latest_effective_draw={_ref_draw(self.latest_effective_draw)}",
+            f"last_pair_draw={_ref_draw(self.last_pair_draw)}",
+            f"pair_cycle_index={'' if self.pair_cycle_index is None else self.pair_cycle_index}",
+            f"pair_last_full_order={self.pair_last_full_order.value if self.pair_last_full_order else ''}",
+            f"pair_window_id={self.pair_window_id or ''}",
+            f"pair_window_index={'' if self.pair_window_index is None else self.pair_window_index}",
+        ]
+        return "||".join(parts)
 
 
 @dataclass

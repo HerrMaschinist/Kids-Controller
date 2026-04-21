@@ -20,6 +20,7 @@ from uuid import UUID
 
 from core.models import (
     Draw,
+    DrawContext,
     DrawMode,
     DrawRequest,
     FairnessWindow,
@@ -49,6 +50,16 @@ def _generate_window_id() -> str:
 def _compute_hash(material: str) -> str:
     """SHA-256-Hash als Hex-String (64 Zeichen)."""
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _seed_int_from_hash(seed_hash: str) -> int:
+    """
+    Wandelt einen Hex-Hash in einen stabilen Integer-Seed für random.Random um.
+
+    Der vollständige Hash wird verwendet, damit die Fensterfolge reproduzierbar
+    bleibt und nicht von einer gekürzten Seed-Repräsentation abhängt.
+    """
+    return int(seed_hash, 16)
 
 
 def _shuffle_permutation_sequence(seed: Optional[int] = None) -> list[str]:
@@ -128,14 +139,8 @@ def _compute_seed_hash(request_id: UUID, draw_date: date, mode: DrawMode) -> str
     return _compute_hash(material)
 
 
-# ---------------------------------------------------------------------------
-# Öffentliche API des Algorithmus
-# ---------------------------------------------------------------------------
-
-def build_draw(
-    request:        DrawRequest,
-    active_window:  Optional[FairnessWindow],
-    draw_id_placeholder: int = 0,
+def build_draw_from_context(
+    context: DrawContext,
 ) -> tuple[Draw, Optional[FairnessWindow]]:
     """
     Berechnet einen neuen Draw und den (ggf. aktualisierten) FairnessWindow.
@@ -145,21 +150,24 @@ def build_draw(
         - updated_window ist None bei SKIP/SINGLE/PAIR
         - updated_window ist ein neues oder fortgesetztes Fenster bei TRIPLET
     """
+    request = context.request
+    active_window = context.active_window
     mode = request.determine_mode()
     now  = datetime.now(tz=timezone.utc)
     seed_hash = _compute_seed_hash(request.request_id, request.draw_date, mode)
+    replay_context_hash = _compute_hash(context.replay_material(seed_hash))
 
     if mode == DrawMode.SKIP:
-        return _build_skip_draw(request, now, seed_hash), None
+        return _build_skip_draw(request, now, seed_hash, replay_context_hash), None
 
     if mode == DrawMode.SINGLE:
-        return _build_single_draw(request, now, seed_hash), None
+        return _build_single_draw(request, now, seed_hash, replay_context_hash), None
 
     if mode == DrawMode.PAIR:
-        return _build_pair_draw(request, active_window, now, seed_hash), None
+        return _build_pair_draw_from_context(context, now, seed_hash, replay_context_hash), None
 
     # TRIPLET
-    return _build_triplet_draw(request, active_window, now, seed_hash)
+    return _build_triplet_draw(request, active_window, now, seed_hash, replay_context_hash)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +178,7 @@ def _build_skip_draw(
     request:   DrawRequest,
     now:       datetime,
     seed_hash: str,
+    replay_context_hash: str,
 ) -> Draw:
     return Draw(
         id=0,
@@ -194,6 +203,7 @@ def _build_skip_draw(
         stop_midday=None,
         algorithm_version=ALGORITHM_VERSION,
         seed_material_hash=seed_hash,
+        replay_context_hash=replay_context_hash,
         note="SKIP – kein Kind anwesend",
     )
 
@@ -206,6 +216,7 @@ def _build_single_draw(
     request:   DrawRequest,
     now:       datetime,
     seed_hash: str,
+    replay_context_hash: str,
 ) -> Draw:
     kid_id = request.present_ids()[0]
     return Draw(
@@ -231,6 +242,7 @@ def _build_single_draw(
         stop_midday=kid_id,
         algorithm_version=ALGORITHM_VERSION,
         seed_material_hash=seed_hash,
+        replay_context_hash=replay_context_hash,
         note=f"SINGLE – nur Kind {kid_id}",
     )
 
@@ -239,24 +251,46 @@ def _build_single_draw(
 # PAIR
 # ---------------------------------------------------------------------------
 
-def _build_pair_draw(
-    request:       DrawRequest,
-    active_window: Optional[FairnessWindow],
-    now:           datetime,
-    seed_hash:     str,
+def _build_pair_draw_from_context(
+    context: DrawContext,
+    now: datetime,
+    seed_hash: str,
+    replay_context_hash: str,
 ) -> Draw:
+    request = context.request
+    active_window = context.active_window
     pair_key = _pair_key_for_mask(request.present_mask)
-    last_full_order = None
+    source_window_id = context.pair_window_id
+    source_window_index = context.pair_window_index
+    last_full_order = context.pair_last_full_order
     if (
-        active_window is not None
+        last_full_order is None
+        and active_window is not None
         and active_window.last_full_order is not None
         and active_window.last_mode == DrawMode.TRIPLET
     ):
         last_full_order = active_window.last_full_order
+        if source_window_id is None:
+            source_window_id = active_window.window_id
+        if source_window_index is None:
+            source_window_index = active_window.window_index
+    if last_full_order is None:
+        latest_effective_draw = context.latest_effective_draw
+        if (
+            latest_effective_draw is not None
+            and latest_effective_draw.mode == DrawMode.TRIPLET
+            and latest_effective_draw.perm_code is not None
+        ):
+            last_full_order = latest_effective_draw.perm_code
+            if source_window_id is None:
+                source_window_id = latest_effective_draw.window_id
+            if source_window_index is None:
+                source_window_index = latest_effective_draw.window_index
 
     pos1, pos2, derived, cycle_index = _pair_positions_for_state(
         pair_key,
         last_full_order=last_full_order,
+        pair_cycle_index=context.pair_cycle_index,
     )
 
     return Draw(
@@ -264,12 +298,18 @@ def _build_pair_draw(
         draw_ts=now,
         draw_date=request.draw_date,
         request_id=request.request_id,
-        window_id=active_window.window_id if active_window else None,
+        window_id=(
+            source_window_id
+            if source_window_id is not None
+            else active_window.window_id if active_window else None
+        ),
         mode=DrawMode.PAIR,
         present_mask=request.present_mask,
         window_index=None,
         active_window_index_snapshot=(
-            active_window.window_index if active_window else None
+            source_window_index
+            if source_window_index is not None
+            else active_window.window_index if active_window else None
         ),
         perm_code=None,
         derived_from_last_full_order=derived,
@@ -284,6 +324,7 @@ def _build_pair_draw(
         stop_midday=pos2,
         algorithm_version=ALGORITHM_VERSION,
         seed_material_hash=seed_hash,
+        replay_context_hash=replay_context_hash,
         note=None,
     )
 
@@ -297,6 +338,7 @@ def _build_triplet_draw(
     active_window: Optional[FairnessWindow],
     now:           datetime,
     seed_hash:     str,
+    replay_context_hash: str,
 ) -> tuple[Draw, FairnessWindow]:
     """
     Liest den nächsten perm_code aus dem aktiven Fenster oder erzeugt ein neues.
@@ -307,7 +349,7 @@ def _build_triplet_draw(
         window_id  = _generate_window_id()
         w_seed_mat = _seed_material_for_window(window_id, request.draw_date)
         w_hash     = _compute_hash(w_seed_mat)
-        perm_seq   = _shuffle_permutation_sequence()
+        perm_seq   = _shuffle_permutation_sequence(seed=_seed_int_from_hash(w_hash))
         window = FairnessWindow(
             id=0,
             window_id=window_id,
@@ -379,6 +421,7 @@ def _build_triplet_draw(
         stop_midday=pos2,
         algorithm_version=ALGORITHM_VERSION,
         seed_material_hash=seed_hash,
+        replay_context_hash=replay_context_hash,
         note=None,
     )
     return draw, updated_window

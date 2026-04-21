@@ -255,7 +255,7 @@ class DrawRepository:
                     perm_code, derived_from_last_full_order, is_effective,
                     superseded_by_draw_id, pair_key, pair_cycle_index,
                     pos1, pos2, pos3, stop_morning, stop_midday,
-                    algorithm_version, seed_material_hash, note
+                    algorithm_version, seed_material_hash, replay_context_hash, note
                 ) VALUES (
                     %(draw_ts)s,
                     %(draw_date)s,
@@ -278,6 +278,7 @@ class DrawRepository:
                     %(stop_midday)s,
                     %(algorithm_version)s,
                     %(seed_material_hash)s,
+                    %(replay_context_hash)s,
                     %(note)s
                 )
                 RETURNING *

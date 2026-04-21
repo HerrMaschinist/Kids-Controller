@@ -111,6 +111,7 @@ CREATE TABLE draws (
     stop_midday                  SMALLINT          NULL,
     algorithm_version            VARCHAR(32)       NOT NULL,
     seed_material_hash           CHAR(64)          NOT NULL,
+    replay_context_hash          CHAR(64)          NOT NULL,
     note                         VARCHAR(255)      NULL
 );
 
@@ -128,6 +129,8 @@ COMMENT ON COLUMN draws.pos3 IS
     'Nur bei TRIPLET gesetzt, sonst NULL';
 COMMENT ON COLUMN draws.request_id IS
     'UUID des aufrufenden Systems; niemals NULL';
+COMMENT ON COLUMN draws.replay_context_hash IS
+    'SHA-256 des normalisierten Replay-Kontexts';
 
 CREATE INDEX idx_draws_draw_date        ON draws (draw_date DESC);
 CREATE INDEX idx_draws_draw_date_mode   ON draws (draw_date, mode);
