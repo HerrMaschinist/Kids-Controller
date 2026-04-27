@@ -22,39 +22,49 @@ from core.models import (
     MASK_ALL,
     WindowStatus,
 )
-from core.validation import validate_present_mask_is_smallint, ValidationError
+from core.validation import validate_draw_request, ValidationError
 
 
 # ---------------------------------------------------------------------------
-# 1. present_mask ist nicht JSON (Pflichtprüfung)
+# 1. Anwesenheitsfelder sind strikt boolesch
 # ---------------------------------------------------------------------------
 
-class TestPresentMaskIsNotJson:
-    def test_integer_value_is_accepted(self):
-        """present_mask muss int sein."""
-        validate_present_mask_is_smallint(7)  # kein Fehler
+class TestPresenceFieldsAreStrictBool:
+    def _req(self, *, leon=True, emmi=False, elsa=False) -> DrawRequest:
+        return DrawRequest(
+            request_id=uuid4(),
+            leon_present=leon,
+            emmi_present=emmi,
+            elsa_present=elsa,
+        )
 
-    def test_dict_raises_validation_error(self):
-        """present_mask als dict muss ValidationError auslösen."""
+    def test_bool_values_are_accepted(self):
+        """Alle Anwesenheitsfelder akzeptieren echte bool-Werte."""
+        validate_draw_request(self._req(leon=True, emmi=False, elsa=True))
+
+    def test_leon_present_int_raises_validation_error(self):
+        """leon_present=1 muss ValidationError auslösen."""
         with pytest.raises(ValidationError) as exc_info:
-            validate_present_mask_is_smallint({"leon": True, "emmi": True, "elsa": False})
-        assert exc_info.value.field == "present_mask"
-        assert "SMALLINT" in exc_info.value.message
+            validate_draw_request(self._req(leon=1))
+        assert exc_info.value.field == "leon_present"
 
-    def test_list_raises_validation_error(self):
-        """present_mask als Liste muss ValidationError auslösen."""
-        with pytest.raises(ValidationError):
-            validate_present_mask_is_smallint([1, 2, 3])
+    def test_emmi_present_string_raises_validation_error(self):
+        """emmi_present als String muss ValidationError auslösen."""
+        with pytest.raises(ValidationError) as exc_info:
+            validate_draw_request(self._req(emmi="true"))
+        assert exc_info.value.field == "emmi_present"
 
-    def test_string_raises_validation_error(self):
-        """present_mask als String muss ValidationError auslösen."""
-        with pytest.raises(ValidationError):
-            validate_present_mask_is_smallint("7")
+    def test_elsa_present_none_raises_validation_error(self):
+        """elsa_present=None muss ValidationError auslösen."""
+        with pytest.raises(ValidationError) as exc_info:
+            validate_draw_request(self._req(elsa=None))
+        assert exc_info.value.field == "elsa_present"
 
-    def test_none_raises_validation_error(self):
-        """present_mask als None muss ValidationError auslösen."""
-        with pytest.raises(ValidationError):
-            validate_present_mask_is_smallint(None)
+    def test_validation_message_names_invalid_type(self):
+        """Fehlermeldung nennt den erhaltenen Typ."""
+        with pytest.raises(ValidationError) as exc_info:
+            validate_draw_request(self._req(leon=1))
+        assert "int" in exc_info.value.message
 
 
 # ---------------------------------------------------------------------------

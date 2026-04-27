@@ -26,6 +26,8 @@ KIDS: dict[int, str] = {
     ELSA_ID: "Elsa",
 }
 
+REPLAY_FORMAT_VERSION = "1"
+
 # present_mask Bitmasken
 MASK_LEON: int = 1   # 0b001
 MASK_EMMI: int = 2   # 0b010
@@ -233,6 +235,9 @@ class DrawContext:
             pair_window_index=pair_window_index,
         )
 
+    # If the canonical replay format changes, increment REPLAY_FORMAT_VERSION.
+    # Existing stored replay_context_hash values become non-reproducible and
+    # require a database migration or hash recomputation.
     def replay_material(self, seed_hash: str) -> str:
         """Kanonische Replay-Beschreibung für Audit und Reproduzierbarkeit."""
 
@@ -273,7 +278,7 @@ class DrawContext:
 
         request = self.request
         parts = [
-            "v=1",
+            f"v={REPLAY_FORMAT_VERSION}",
             f"seed_hash={seed_hash}",
             f"request_id={request.request_id}",
             f"draw_date={request.draw_date.isoformat()}",

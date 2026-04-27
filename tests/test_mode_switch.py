@@ -7,7 +7,7 @@ Pflichtprüfung:
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import uuid4
 
 import pytest
@@ -30,7 +30,7 @@ def _make_request(leon: bool, emmi: bool, elsa: bool) -> DrawRequest:
         leon_present=leon,
         emmi_present=emmi,
         elsa_present=elsa,
-        draw_date=date(2025, 1, 15),
+        draw_date=date.today(),
     )
 
 
@@ -40,7 +40,7 @@ def _make_active_window(index: int = 0) -> FairnessWindow:
     return FairnessWindow(
         id=1,
         window_id="ABCD1234",
-        window_start_date=date(2025, 1, 1),
+        window_start_date=date.today() - timedelta(days=1),
         window_status=WindowStatus.ACTIVE,
         window_index=index,
         window_size=12,

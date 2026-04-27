@@ -5,7 +5,7 @@ Prüft Mapper-Logik und Parameterstruktur.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -58,14 +58,14 @@ def _make_window() -> FairnessWindow:
     return FairnessWindow(
         id=1,
         window_id="ABCD1234",
-        window_start_date=date(2025, 1, 1),
+        window_start_date=date.today() - timedelta(days=1),
         window_status=WindowStatus.ACTIVE,
         window_index=3,
         window_size=12,
         permutation_sequence=["123", "132", "213", "231", "312", "321",
                                "123", "132", "213", "231", "312", "321"],
         last_full_order=PermCode.P231,
-        last_full_draw_date=date(2025, 1, 10),
+        last_full_draw_date=date.today() - timedelta(days=1),
         last_mode=DrawMode.TRIPLET,
         seed_material_hash="b" * 64,
         shuffle_algorithm="fisher_yates",

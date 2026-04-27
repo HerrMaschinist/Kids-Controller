@@ -151,7 +151,7 @@ class TestHaAdapter:
         draw = Draw(
             id=99,
             draw_ts=datetime.now(tz=timezone.utc),
-            draw_date=date(2025, 3, 1),
+            draw_date=date.today(),
             request_id=uuid4(),
             window_id="WXYZ5678",
             mode=DrawMode.TRIPLET,
@@ -182,11 +182,11 @@ class TestHaAdapter:
         assert resp.pos3 == 2
         assert resp.stop_morning == 3
         assert resp.stop_midday == 1
-        assert resp.draw_date == date(2025, 3, 1)
+        assert resp.draw_date == date.today()
         # Alias-Prüfung: serialisiert als "date"
         serialized = resp.model_dump(by_alias=True)
         assert "date" in serialized
-        assert serialized["date"] == date(2025, 3, 1)
+        assert serialized["date"] == date.today()
 
     def test_request_has_no_mode_field(self):
         ha_req = self._make_ha_request()

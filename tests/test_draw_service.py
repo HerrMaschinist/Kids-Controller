@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -117,13 +117,13 @@ def _make_active_window(index: int = 0, last_full_order: PermCode | None = None)
     return FairnessWindow(
         id=1,
         window_id="ABCD1234",
-        window_start_date=date(2025, 1, 1),
+        window_start_date=date.today() - timedelta(days=1),
         window_status=WindowStatus.ACTIVE,
         window_index=index,
         window_size=12,
         permutation_sequence=_shuffle_permutation_sequence(seed=42),
         last_full_order=last_full_order,
-        last_full_draw_date=date(2025, 1, 1) if last_full_order else None,
+        last_full_draw_date=date.today() - timedelta(days=1) if last_full_order else None,
         last_mode=DrawMode.TRIPLET if last_full_order else None,
         seed_material_hash="a" * 64,
         shuffle_algorithm="fisher_yates",
@@ -139,7 +139,7 @@ def _make_request(leon: bool, emmi: bool, elsa: bool, *, request_id=None, draw_d
         leon_present=leon,
         emmi_present=emmi,
         elsa_present=elsa,
-        draw_date=draw_date or date(2025, 1, 15),
+        draw_date=draw_date or date.today(),
     )
 
 
@@ -191,7 +191,7 @@ def test_pair_sequence_falls_back_to_latest_triplet_when_window_is_completed():
     latest_triplet = Draw(
         id=77,
         draw_ts=datetime.now(tz=timezone.utc),
-        draw_date=date(2025, 1, 14),
+        draw_date=date.today() - timedelta(days=1),
         request_id=uuid4(),
         window_id="WXYZ5678",
         mode=DrawMode.TRIPLET,
@@ -266,7 +266,7 @@ def test_duplicate_request_id_returns_existing_draw_without_persisting():
     existing = Draw(
         id=99,
         draw_ts=datetime.now(tz=timezone.utc),
-        draw_date=date(2025, 1, 15),
+        draw_date=date.today(),
         request_id=uuid4(),
         window_id="ABCD1234",
         mode=DrawMode.SKIP,
@@ -327,7 +327,7 @@ def test_uq_effective_draw_per_date_returns_existing_draw(monkeypatch):
     existing = Draw(
         id=101,
         draw_ts=datetime.now(tz=timezone.utc),
-        draw_date=date(2025, 1, 15),
+        draw_date=date.today(),
         request_id=uuid4(),
         window_id="ABCD1234",
         mode=DrawMode.TRIPLET,

@@ -5,8 +5,8 @@ DrawService orchestriert Algorithmus und Persistenz in einer Transaktion.
 Transaktionsreihenfolge (verbindlich):
   1. Aktives Fenster mit Sperre lesen (SELECT FOR UPDATE)
   2. Berechnung ausführen
-  3. Draw schreiben
-  4. Fenster aktualisieren oder neu anlegen
+  3. Fenster aktualisieren oder neu anlegen
+  4. Draw schreiben
   5. Commit oder Rollback
 """
 from __future__ import annotations
@@ -94,17 +94,17 @@ class DrawService:
                     # Schritt 4: Draw schreiben
                     saved_draw = await self._draw_repo.insert(draw, conn)
 
-                    self._supervisor_state.record_draw_success(saved_draw)
                     effective_window = (
                         updated_window if updated_window is not None else active_window
                     )
 
-                    logger.info(
-                        "Draw gespeichert: id=%s mode=%s request_id=%s",
-                        saved_draw.id,
-                        saved_draw.mode.value,
-                        request.request_id,
-                    )
+                self._supervisor_state.record_draw_success(saved_draw)
+                logger.info(
+                    "Draw gespeichert: id=%s mode=%s request_id=%s",
+                    saved_draw.id,
+                    saved_draw.mode.value,
+                    request.request_id,
+                )
                 if self._router_client is not None and saved_draw is not None:
                     router_result = await self._router_client.observe_draw(
                         saved_draw,

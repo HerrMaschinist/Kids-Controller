@@ -372,6 +372,10 @@ def _build_triplet_draw(
 
     # Permutation aus Sequenz lesen
     idx           = window.window_index
+    if idx < 0 or idx >= WINDOW_SIZE:
+        raise IndexError(
+            f"Ungültiger window_index {idx}; erwartet 0..{WINDOW_SIZE - 1}"
+        )
     perm_code_str = window.permutation_sequence[idx]
     perm_code     = PermCode(perm_code_str)
     pos1, pos2, pos3 = perm_code.to_tuple()
@@ -435,4 +439,8 @@ def next_pair_cycle_index(last_pair_cycle_index: Optional[int]) -> int:
     """AB/BA-Rotation: 0 → 1 → 0 → ..."""
     if last_pair_cycle_index is None:
         return 0
+    if last_pair_cycle_index not in (0, 1):
+        raise ValueError(
+            f"Ungültiger pair_cycle_index {last_pair_cycle_index}; erwartet 0 oder 1"
+        )
     return 1 - last_pair_cycle_index

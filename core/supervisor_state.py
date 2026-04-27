@@ -63,9 +63,6 @@ class SupervisorState:
             self._last_successful_draw_id = draw.id
             self._last_successful_draw_date = draw.draw_date
             self._last_successful_draw_mode = draw.mode.value
-            self._last_error_at = None
-            self._last_error_source = None
-            self._last_error_message = None
 
     def record_error(self, source: str, message: str) -> None:
         with self._lock:
@@ -140,6 +137,9 @@ class SupervisorState:
 _SUPERVISOR_STATE: SupervisorState | None = None
 
 
+# WARNING: This is a process-local singleton. In multi-worker deployments
+# (for example uvicorn --workers N), each worker has an independent state and
+# health snapshots can diverge. Use only when that behavior is acceptable.
 def get_supervisor_state() -> SupervisorState:
     global _SUPERVISOR_STATE
     if _SUPERVISOR_STATE is None:

@@ -149,7 +149,7 @@ class TestApiFieldNaming:
             "draw_id": 1, "mode": "TRIPLET",
             "pos1": 1, "pos2": 2, "pos3": 3,
             "stop_morning": 1, "stop_midday": 2,
-            "date": date(2025, 1, 1),
+            "date": date.today(),
             "generated_at": datetime.now(timezone.utc),
         })
         assert "date" in resp.model_dump(by_alias=True)
